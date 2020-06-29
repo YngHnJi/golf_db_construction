@@ -4,9 +4,11 @@
 #include <k4arecord/record.hpp>
 
 #include <iostream>
+#include <cstdio>
 #include <vector>
 #include <array>
 #include <conio.h>
+#include <direct.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
@@ -59,7 +61,7 @@ void showandrecord(string output_file, bool record_switch)
 	char key_input;
 	int file_index = 0;
 	string filename_prefix = "output\\check\\record_";
-	string filename; // file_name = filename_prefix + itos(file_index) + ".mkv
+	string filename;
 	filename.append(filename_prefix);
 	filename.append(to_string(file_index));
 	filename.append(".mkv");
@@ -79,7 +81,7 @@ void showandrecord(string output_file, bool record_switch)
 	{
 		if (device.get_capture(&capture, std::chrono::milliseconds(0)))
 		{
-			std::cout << "flag: " << flag_record << std::endl;
+			//std::cout << "flag: " << flag_record << std::endl;
 			// Activate flag_record to record file
 			if (_kbhit())
 			{
@@ -88,7 +90,7 @@ void showandrecord(string output_file, bool record_switch)
 				{
 					flag_record += 1;
 					std::cout << "Recording started" << std::endl;
-					std::cout << "flag: " << flag_record << std::endl;
+					//std::cout << "flag: " << flag_record << std::endl;
 				}
 			}
 
@@ -126,7 +128,7 @@ void showandrecord(string output_file, bool record_switch)
 		if (flag_record == 2)
 		{
 			cout << "Record file saving" << endl;
-			std::cout << "flag: " << flag_record << std::endl;
+			//std::cout << "flag: " << flag_record << std::endl;
 			recording.close();
 			recording.flush();
 
@@ -152,6 +154,13 @@ void showandrecord(string output_file, bool record_switch)
 			{
 				recording.close();
 				recording.flush();
+			}
+			else if (flag_record == 0)
+			{
+				recording.close();
+				recording.flush();
+
+				remove(filename.c_str());
 			}
 			break;
 		}
