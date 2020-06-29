@@ -1,0 +1,173 @@
+#include <k4a/k4a.hpp>
+#include <k4a/k4a.h>
+#include <k4arecord/record.h>
+#include <k4arecord/record.hpp>
+
+#include <iostream>
+#include <vector>
+#include <array>
+
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
+#include "Pixel.h"
+#include "DepthPixelColorizer.h"
+#include "StaticImageProperties.h"
+
+using namespace std;
+using namespace cv;
+using namespace sen;
+
+int main(int argc, char** argv)
+{
+	cv::setBreakOnError(true);
+
+	const uint32_t deviceCount = k4a::device::get_installed_count();
+	if (deviceCount == 0)
+	{
+		cout << "no azure kinect devices detected!" << endl;
+	}
+
+	k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+	config.camera_fps = K4A_FRAMES_PER_SECOND_30;
+	config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+	//config.color_format = K4A_IMAGE_FORMAT_COLOR_MJPG; // for recording
+	//config.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2; //for recording
+	//config.color_format = K4A_IMAGE_FORMAT_COLOR_NV12; //for recording
+	config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32; //for imshow
+	config.color_resolution = K4A_COLOR_RESOLUTION_720P;
+	config.synchronized_images_only = true;
+
+	cout << "Started opening K4A device..." << endl;
+	k4a::device device = k4a::device::open(K4A_DEVICE_DEFAULT);
+	device.start_cameras(&config);
+	cout << "Finished opening K4A device." << endl;
+
+	std::vector<Pixel> depthTextureBuffer;
+	std::vector<Pixel> irTextureBuffer;
+	uint8_t* colorTextureBuffer;
+
+	k4a::capture capture;
+
+	k4a::image depthImage;
+	k4a::image colorImage;
+	k4a::image irImage;
+
+	cv::Mat depthFrame;
+	cv::Mat colorFrame;
+	cv::Mat irFrame;
+
+	cv::Mat depthFrame_bgr;
+	cv::Mat colorFrame_bgr;
+	cv::Mat irFrame_bgr;
+
+
+	std::chrono::milliseconds timestamp;
+
+	////////////////// Video Recording part
+	/*
+	string file_name_recording = "recording_nv12_show.mkv"; // video file name
+	k4a::record recording = k4a::record::create(file_name_recording.c_str(), device, config);
+	recording.write_header();
+
+	if (recording.is_valid() == false) {
+		cout << "Recording not opened" << endl;
+
+		return 0;
+	}
+	*/
+
+	int i = 0;
+
+	while (i != 50)
+	{		
+		cout << "index :" << i << endl;
+		i += 1;
+		if (device.get_capture(&capture, std::chrono::milliseconds(0)))
+		{
+			{
+				// Record
+				/*
+				if waitkey() == start:
+					recording.write_capture(capture);
+				
+				*/
+				//recording.write_capture(capture);
+
+				
+				//get image from capture
+				depthImage = capture.get_depth_image();
+				colorImage = capture.get_color_image();
+				irImage = capture.get_ir_image();
+
+				ColorizeDepthImage(depthImage, DepthPixelColorizer::ColorizeBlueToRed, GetDepthModeRange(config.depth_mode), &depthTextureBuffer);
+				ColorizeDepthImage(irImage, DepthPixelColorizer::ColorizeGreyscale, GetIrLevels(K4A_DEPTH_MODE_PASSIVE_IR), &irTextureBuffer);
+				colorTextureBuffer = colorImage.get_buffer();
+
+				// RGBA 값이기 때문에 이런 거 같다.
+				depthFrame = cv::Mat(depthImage.get_height_pixels(), depthImage.get_width_pixels(), CV_8UC4, depthTextureBuffer.data());
+				colorFrame = cv::Mat(colorImage.get_height_pixels(), colorImage.get_width_pixels(), CV_8UC4, colorTextureBuffer);
+				irFrame = cv::Mat(irImage.get_height_pixels(), irImage.get_width_pixels(), CV_8UC4, irTextureBuffer.data());
+
+				/*
+				depthFrame = cv::Mat(depthImage.get_height_pixels(), depthImage.get_width_pixels(), CV_8UC3, depthTextureBuffer.data());
+				colorFrame = cv::Mat(colorImage.get_height_pixels(), colorImage.get_width_pixels(), CV_8UC3, colorTextureBuffer);
+				irFrame = cv::Mat(irImage.get_height_pixels(), irImage.get_width_pixels(), CV_8UC3, irTextureBuffer.data());
+
+				depthFrame_bgr = cv::Mat::zeros(depthFrame.rows, depthFrame.cols, CV_8UC3);
+				colorFrame_bgr = cv::Mat::zeros(colorFrame.rows, colorFrame.cols, CV_8UC3);
+				irFrame_bgr = cv::Mat::zeros(irFrame.rows, irFrame.cols, CV_8UC3);
+
+				// converting COLOR_YCrCb2BGR to use imshow function
+				cvtColor(depthFrame, depthFrame_bgr, COLOR_YCrCb2BGR);
+				cvtColor(colorFrame, colorFrame_bgr, COLOR_YCrCb2BGR);
+				cvtColor(irFrame, irFrame_bgr, COLOR_YCrCb2BGR);
+
+				cv::imshow("kinect depth map master", depthFrame_bgr);
+				cv::imshow("kinect color frame master", colorFrame_bgr);
+				cv::imshow("kinect ir .frame master", irFrame_bgr);
+
+
+				*/
+
+				cv::imshow("kinect depth map master", depthFrame);
+				cv::imshow("kinect color frame master", colorFrame);
+				cv::imshow("kinect ir .frame master", irFrame);
+				
+
+				/*
+				depthImage = capture.get_depth_image();
+				irImage = capture.get_ir_image();
+				colorImage = capture.get_color_image();
+
+				colorTextureBuffer = colorImage.get_buffer();
+				colorFrame = cv::Mat(colorImage.get_height_pixels(), colorImage.get_width_pixels(), CV_8UC3, colorTextureBuffer);
+				colorFrame_bgr = cv::Mat::zeros(colorFrame.rows, colorFrame.cols, CV_8UC3);
+				
+				cout << "cvt before" << endl;
+				cvtColor(colorFrame, colorFrame_bgr, COLOR_YUV2BGR);
+				//cvtColor(colorFrame, colorFrame_bgr, COLOR_YCrCb2BGR);
+				cout << "cvt after" << endl;
+
+				cv::imshow("kinect color frame_bgr master", colorFrame_bgr);
+				*/
+			}
+
+		}
+		if (waitKey(30) == 27 || waitKey(30) == 'q')
+		{
+			cout << "Stop Recording" << endl;
+			break;
+		}
+	}
+
+	cout << "Record file saving" << endl;
+	//recording.close();
+	//recording.flush();
+
+	device.stop_cameras();
+	device.close();
+
+	return 0;
+}

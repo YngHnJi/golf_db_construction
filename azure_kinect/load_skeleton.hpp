@@ -16,7 +16,7 @@
 #include <atomic>
 #include <assert.h>
 
-#include <fstream> // file io lib
+#include <fstream>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>

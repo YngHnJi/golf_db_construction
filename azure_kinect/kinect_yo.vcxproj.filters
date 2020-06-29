@@ -32,6 +32,9 @@
     <ClCompile Include="load_skeleton.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="init_device.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="StaticImageProperties.h">
@@ -56,6 +59,12 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\..\Program Files\Azure Kinect SDK v1.4.0\sdk\include\k4arecord\record.hpp">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="load_skeleton.hpp">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="init_device.hpp">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

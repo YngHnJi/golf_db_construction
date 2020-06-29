@@ -1,7 +1,9 @@
 #include <k4a/k4a.hpp>
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
+#include <k4arecord/playback.hpp>
 #include <k4arecord/record.h>
+#include <k4arecord/record.hpp>
 
 #include <windows.h>
 
@@ -19,131 +21,85 @@
 #include "StaticImageProperties.h"
 #include "Util.h"
 
+#include "init_device.hpp"
+
 using namespace std;
 using namespace cv;
 using namespace sen;
 
-int load_play(void)
-{
-	k4a_playback_t playback = NULL;
-	k4a_result_t result;
-	k4a_stream_result_t stream_result;
-
-	string input_path = "output\\module_check.mkv";
-	result = k4a_playback_open(input_path.c_str(), &playback);
-	if (result != K4A_RESULT_SUCCEEDED || playback == NULL)
-	{
-		std::cout << "Failed to open recording: " << input_path << std::endl;
-		return -1;
-	}
-
-	k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-	config.camera_fps = K4A_FRAMES_PER_SECOND_30;
-	config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-	config.color_format = K4A_IMAGE_FORMAT_COLOR_YUY2;
-	config.color_resolution = K4A_COLOR_RESOLUTION_720P;
-	config.synchronized_images_only = true;
-
-	k4a_capture_t capture = NULL;
-
-	k4a_image_t depthImage = NULL;
-	k4a_image_t compressed_color_image = NULL;
-	k4a_image_t irImage = NULL;
-	k4a_image_t uncompressed_color_image = NULL;
-
-	cv::Mat depthFrame;
-	cv::Mat colorFrame;
-	cv::Mat irFrame;
-
+struct kinect_img_container {
 	std::vector<Pixel> depthTextureBuffer;
 	std::vector<Pixel> irTextureBuffer;
 	uint8_t* colorTextureBuffer;
 
+	k4a::image colorImage;
+	k4a::image depthImage;
+	k4a::image irImage;
+
+	cv::Mat colorFrame;
+	cv::Mat depthFrame;
+	cv::Mat irFrame;
+};
+
+void load_play(string input_video)
+{
+	k4a_device_configuration_t config;
+	config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
+
+	cout << "Started opening Video file..." << endl;
+	k4a::playback playback = k4a::playback::open(input_video.c_str());
+	cout << "Finished opening Video file..." << endl;
+
+	k4a::capture video_capture;
+	kinect_img_container im_container;
+
 	while (1)
 	{
-		stream_result = k4a_playback_get_next_capture(playback, &capture);
-		if (stream_result != K4A_STREAM_RESULT_SUCCEEDED || capture == NULL)
+		if (playback.get_next_capture(&video_capture))
 		{
-			std::cout << "Failed to fetch frame." << std::endl;
-			return -1;
+			// TO DO, Video Capture part comes here
+			//get image from capture
+			//colorImage = capture.get_color_image();
+			im_container.depthImage = video_capture.get_depth_image();
+			im_container.irImage = video_capture.get_ir_image();
+
+			//colorTextureBuffer = colorImage.get_buffer();
+			ColorizeDepthImage(im_container.depthImage, DepthPixelColorizer::ColorizeBlueToRed, GetDepthModeRange(config.depth_mode), &im_container.depthTextureBuffer);
+			ColorizeDepthImage(im_container.irImage, DepthPixelColorizer::ColorizeGreyscale, GetIrLevels(K4A_DEPTH_MODE_PASSIVE_IR), &im_container.irTextureBuffer);
+
+			// RGBA 값이기 때문에 이런 거 같다.
+			//colorFrame = cv::Mat(colorImage.get_height_pixels(), colorImage.get_width_pixels(), CV_8UC4, colorTextureBuffer);
+			im_container.depthFrame = cv::Mat(im_container.depthImage.get_height_pixels(), im_container.depthImage.get_width_pixels(), CV_8UC4, im_container.depthTextureBuffer.data());
+			im_container.irFrame = cv::Mat(im_container.irImage.get_height_pixels(), im_container.irImage.get_width_pixels(), CV_8UC4, im_container.irTextureBuffer.data());
+
+			//// can't access to colorFrame, 
+			//cvtColor(colorFrame, colorFrame_bgr, COLOR_YCrCb2BGR);
+			//cvtColor(colorFrame, colorFrame_bgr, COLOR_YCrCb2BGR);
+
+			//cv::imshow("kinect color frame master", colorFrame);
+			cv::imshow("kinect depth map master", im_container.depthFrame);
+			cv::imshow("kinect ir frame master", im_container.irFrame);
 		}
-
-		/*
-		compressed_color_image = k4a_capture_get_color_image(capture);
-		int color_width, color_height;
-		color_width = k4a_image_get_width_pixels(compressed_color_image);
-		color_height = k4a_image_get_height_pixels(compressed_color_image);
-
-		if (K4A_RESULT_SUCCEEDED != k4a_image_create(K4A_IMAGE_FORMAT_COLOR_BGRA32,
-			color_width,
-			color_height,
-			color_width * 4 * (int)sizeof(uint8_t),
-			&uncompressed_color_image))
+		else
 		{
-			std::cout << "Failed to create image buffer\n";
-			return -1;
+			std::cout << "End of video" << std::endl;
+			
+			return;
 		}
-		*/
-		//tjhandle tjHandle;
-		//tjHandle = tjInitDecompress();
-		//if (tjDecompress2(tjHandle,
-		//	k4a_image_get_buffer(compressed_color_image),
-		//	static_cast<unsigned long>(k4a_image_get_size(compressed_color_image)),
-		//	k4a_image_get_buffer(uncompressed_color_image),
-		//	color_width,
-		//	0, // pitch
-		//	color_height,
-		//	TJPF_BGRA,
-		//	TJFLAG_FASTDCT | TJFLAG_FASTUPSAMPLE) != 0)
-		//{
-		//	std::cout << "Failed to decompress color frame\n";
-		//	if (tjDestroy(tjHandle))
-		//	{
-		//		std::cout << "Failed to destroy turboJPEG handle\n";
-		//	}
-		//	return -1;
-		//}
-		//if (tjDestroy(tjHandle))
-		//{
-		//	std::cout << "Failed to destroy turboJPEG handle\n";
-		//	return -1;
-		//}
-
-		///////////////////////////////
-		irImage = k4a_capture_get_ir_image(capture);
-		depthImage = k4a_capture_get_depth_image(capture);
-
-
-		ColorizeDepthImage(depthImage, DepthPixelColorizer::ColorizeBlueToRed, GetDepthModeRange(config.depth_mode), &depthTextureBuffer);
-		ColorizeDepthImage(irImage, DepthPixelColorizer::ColorizeGreyscale, GetIrLevels(K4A_DEPTH_MODE_PASSIVE_IR), &irTextureBuffer);
-		//colorTextureBuffer = k4a_image_get_buffer(uncompressed_color_image);
-
-		depthFrame = cv::Mat(k4a_image_get_height_pixels(depthImage), k4a_image_get_width_pixels(depthImage), CV_8UC4, depthTextureBuffer.data());
-		//colorFrame = cv::Mat(k4a_image_get_height_pixels(uncompressed_color_image), k4a_image_get_width_pixels(uncompressed_color_image), CV_8UC4, colorTextureBuffer);
-		irFrame = cv::Mat(k4a_image_get_height_pixels(irImage), k4a_image_get_width_pixels(irImage), CV_8UC4, irTextureBuffer.data());
-		cv::imshow("kinect depth map master", depthFrame);
-		//cv::imshow("kinect color frame master", colorFrame);
-		cv::imshow("kinect ir frame master", irFrame);
-
 		if (waitKey(30) == 27 || waitKey(30) == 'q')
 		{
-			k4a_playback_close(playback);
+			cout << "Stop Playing" << endl;
 			break;
 		}
 	}
-	k4a_image_release(depthImage);
-	//k4a_image_release(uncompressed_color_image);
-	//k4a_image_release(compressed_color_image);
-	k4a_image_release(irImage);
-
-
-	return 0;
+	return;
 }
 
 /*
 int main(void)
 {
-	load_play();
+	string input_video = "output\\module_check.mkv";
+	load_play(input_video);
 
 	return 0;
 }

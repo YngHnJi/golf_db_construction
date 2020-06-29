@@ -1,6 +1,11 @@
 // function to get skeleton data from loaded file
 
-#include "load_skeleton.hpp"
+
+#include <assert.h>
+#include <iostream>
+
+#include <k4a/k4a.hpp>
+#include <k4abt.hpp>
 
 // Reference: https://github.com/forestsen/KinectAzureDKProgramming
 
@@ -39,71 +44,33 @@ void print_body_index_map_middle_line(k4a::image body_index_map)
     std::cout << std::endl;
 }
 
-void export_data(k4abt_body_t body, string output_dir, ofstream& file)
-{
-    for (int i = 0; i < (int)K4ABT_JOINT_COUNT; i++)
-    {
-        k4a_float3_t position = body.skeleton.joints[i].position;
-        k4a_quaternion_t orientation = body.skeleton.joints[i].orientation;
-        k4abt_joint_confidence_level_t confidence_level = body.skeleton.joints[i].confidence_level;
-    
-        // file write function here
-        file << position.v[0] << "," << position.v[1] << "," << position.v[2] << "," <<
-            orientation.v[0] << "," << orientation.v[1] << "," << orientation.v[2] << "," << orientation.v[3] << endl;
-    }
-
-
-    return;
-}
-
-void load_print_skeleton(string video_input, string output_dir, bool export_flag, ofstream& file)
+int print_skeleton(void)
 {
     try
-    {        
-        /*std::vector<Pixel> depthTextureBuffer;
-        std::vector<Pixel> irTextureBuffer;
-        uint8_t* colorTextureBuffer;
+    {
+        k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
+        device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
 
-        k4a::image depthImage;
-        k4a::image irImage;
-
-        cv::Mat colorFrame;
-        cv::Mat depthFrame;
-        cv::Mat irFrame;*/
-
-        // Init configurations
-        //k4a_device_configuration_t device_config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
-        //device_config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
-
-        cout << "Started opening Video file..." << endl;
-        k4a::playback playback = k4a::playback::open(video_input.c_str());
-        cout << "Finished opening Video file..." << endl;
-
-        /*
-        cout << "Started opening K4A device..." << endl;
-        k4a::device device = k4a::device::open(K4A_DEVICE_DEFAULT);
+        k4a::device device = k4a::device::open(0);
         device.start_cameras(&device_config);
-        cout << "Finished opening K4A device." << endl;
-        */
 
+        k4a::calibration sensor_calibration = device.get_calibration(device_config.depth_mode, device_config.color_resolution);
 
-        //k4a::calibration sensor_calibration = device.get_calibration(device_config.depth_mode, device_config.color_resolution);
-        k4a::calibration sensor_calibration = playback.get_calibration();
         k4abt::tracker tracker = k4abt::tracker::create(sensor_calibration);
 
-        k4a::capture video_capture;
-
         int frame_count = 0;
-
-        while (1)
+        do
         {
-            if (playback.get_next_capture(&video_capture))
+            k4a::capture sensor_capture;
+            if (device.get_capture(&sensor_capture, std::chrono::milliseconds(K4A_WAIT_INFINITE)))
             {
                 frame_count++;
+
                 std::cout << "Start processing frame " << frame_count << std::endl;
 
-                if (!tracker.enqueue_capture(video_capture))
+                if (!tracker.enqueue_capture(sensor_capture))
                 {
+                    // It should never hit timeout when K4A_WAIT_INFINITE is set.
                     std::cout << "Error! Add capture to tracker process queue timeout!" << std::endl;
                     break;
                 }
@@ -117,16 +84,10 @@ void load_print_skeleton(string video_input, string output_dir, bool export_flag
                     for (uint32_t i = 0; i < num_bodies; i++)
                     {
                         k4abt_body_t body = body_frame.get_body(i);
-                        //print_body_information(body);
-                        if (export_flag == true) {
-                            //TimeStamp
-                            file << frame_count << endl;
-                            export_data(body, output_dir, file);
-                        }
+                        print_body_information(body);
                     }
-                    std::cout << std::endl << std::endl;
 
-                    /*k4a::image body_index_map = body_frame.get_body_index_map();
+                    k4a::image body_index_map = body_frame.get_body_index_map();
                     if (body_index_map != nullptr)
                     {
                         print_body_index_map_middle_line(body_index_map);
@@ -134,7 +95,7 @@ void load_print_skeleton(string video_input, string output_dir, bool export_flag
                     else
                     {
                         std::cout << "Error: Failed to generate bodyindex map!" << std::endl;
-                    }*/
+                    }
                 }
                 else
                 {
@@ -145,42 +106,28 @@ void load_print_skeleton(string video_input, string output_dir, bool export_flag
             }
             else
             {
-                // It should never hit timeout when K4A_WAIT_INFINITE is set.
-                std::cout << "Skeleton data Extraction done" << std::endl;
+                // It should never hit time out when K4A_WAIT_INFINITE is set.
+                std::cout << "Error! Get depth frame time out!" << std::endl;
                 break;
             }
-        }
+        } while (frame_count < 10);
+        std::cout << "Finished body tracking processing!" << std::endl;
+
     }
     catch (const std::exception& e)
     {
         std::cerr << "Failed with exception:" << std::endl
             << "    " << e.what() << std::endl;
-        return;
+        return 1;
     }
 
-    return;
+    return 0;
 }
 
 /*
 int main(void)
 {
-    bool export_flag = true;
-    
-    string input_path = "output\\module_check.mkv";
-    string output_dir = "output\\result.csv";
-
-    ofstream file;
-    file.open(output_dir, ios::in);
-    if (!(file.is_open())) {
-        std::cout << "File not opened" << std::endl;
-
-        return -1;
-    }
-
-    load_print_skeleton(input_path, output_dir, export_flag, file);
-
-    std::cout << "File closing" << std::endl;
-    file.close();
+    print_skeleton();
 
     return 0;
 }

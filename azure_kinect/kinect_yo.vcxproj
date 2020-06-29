@@ -149,6 +149,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="init_device.cpp" />
     <ClCompile Include="load_skeleton.cpp" />
     <ClCompile Include="load_play.cpp" />
     <ClCompile Include="show_record.cpp" />
@@ -168,6 +169,8 @@
     <ClInclude Include="..\..\..\..\..\Program Files\Azure Kinect SDK v1.4.0\sdk\include\k4arecord\record.h" />
     <ClInclude Include="..\..\..\..\..\Program Files\Azure Kinect SDK v1.4.0\sdk\include\k4arecord\record.hpp" />
     <ClInclude Include="DepthPixelColorizer.h" />
+    <ClInclude Include="init_device.hpp" />
+    <ClInclude Include="load_skeleton.hpp" />
     <ClInclude Include="Pixel.h" />
     <ClInclude Include="StaticImageProperties.h" />
     <ClInclude Include="Util.h" />
