@@ -6,7 +6,8 @@
 import socketserver
 import threading
 
-HOST = '210.123.42.42'
+#HOST = '210.123.42.42'
+HOST = "localhost"
 PORT = 5051
 NUM_DEVICE = 0
 lock = threading.Lock() # syncronized 동기화 진행하는 스레드 생성
@@ -49,8 +50,13 @@ class TCPHandler(socketserver.BaseRequestHandler):
 
         try:
             username = self.registerUsername()
-            print("Num Devices Connected [%d / %d]" %(len(self.userman.users), NUM_DEVICE))
 
+            connected_devices = list(self.userman.users.keys())
+            for device in connected_devices:
+                print(device, end=" ")
+
+            print("// Devices Connected [%d / %d]" %(len(self.userman.users), NUM_DEVICE))
+            
             if(len(self.userman.users) == NUM_DEVICE):
                 print("All devices ready to be operated")
                 while True:
