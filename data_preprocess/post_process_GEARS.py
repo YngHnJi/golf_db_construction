@@ -216,23 +216,42 @@ class GearsPostProcess():
     def add_timestamp(self, c3d_df, summary_filename:str, output_file:str, fixed_row=65):
         #df = pd.read_csv(c3d_filename)
         df_timestamp = pd.read_csv(self.root_path + summary_filename, skiprows=fixed_row)
+        df_timestamp_dropna = df_timestamp.dropna(axis=1)
+        timestamp = df_timestamp_dropna["Time(sec)"]
 
-        timestamp = df_timestamp["Time(sec)"]
         #df.insert(0, "timestamp", timestamp)
         #df.to_csv(self.output_dir+output_file)
         c3d_df.insert(0, "timestamp", timestamp)
         c3d_df.to_csv(self.save_path + output_file)
+
+    def add_extradata(self, c3d_df, summary_filename:str, output_file:str, fixed_row=65):
+        summart_df = pd.read_csv(self.root_path + summary_filename, skiprows=fixed_row)
+        summart_df_dropna = summart_df.dropna(axis=1)
+        summary_front = summart_df_dropna[['Time(sec)', 'Impact', 'Interpolated']]
+        summary_end = summart_df_dropna[['Clubhead Position X(mm)',
+                                        'Clubhead Position Y(mm)', 'Clubhead Position Z(mm)',
+                                        'Clubhead Speed(mph)', 'Loft', 'Grip Position X(mm)',
+                                        'Grip Position Y(mm)', 'Grip Position Z(mm)', 'Grip Speed(mph)',
+                                        'Shaft Deflection(mm)', 'Clubhead Normal X', 'Clubhead Normal Y',
+                                        'Clubhead Normal Z', 'Shaft Direction X', 'Shaft Direction Y',
+                                        'Shaft Direction Z']]
+
+
+        result_df = pd.concat([summary_front, c3d_df, summary_end], axis=1)
+        result_df.to_csv(self.save_path + output_file)
 
 def main():
     root_path = ".\\sample\\"
     save_path = ".\\sample\\outputdir\\"
     c3d_file = "C3dExport.c3d"
     summary_file = "CsvExport_200514.csv"
-    output_file = "jointinfo_timestamp2.csv"
+    #output_file = "jointinfo_timestamp2.csv"
+    output_file = "GEARS_output.csv"
 
     gears_post_processor = GearsPostProcess(root_path, save_path)
     c3d2csv_df = gears_post_processor.write_C3D2DF(c3d_file)
-    gears_post_processor.add_timestamp(c3d2csv_df, summary_file, output_file)
+    #gears_post_processor.add_timestamp(c3d2csv_df, summary_file, output_file)
+    gears_post_processor.add_extradata(c3d2csv_df, summary_file, output_file)
 
     print("Process Done")
 
