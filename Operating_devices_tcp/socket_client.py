@@ -8,6 +8,9 @@ import ntplib
 from threading import Thread
 from time import ctime
 
+import pyautogui
+import pygetwindow as gw
+
 class sync_time(): # class to sync time based on provided domain 
     def __init__(self, ntp_domain):
         self.timeServer = ntp_domain # "time.windows.com"
@@ -49,22 +52,38 @@ class socket_client():
                 print("Received CMD: ", data.decode())
                 if(data.decode() == "time"):
                     print(self.time_sync.get_NTPTime())
-                
-                # Use External Operating.
-                if(data.decode=="a"):
+                else:
                     if(self.device_name=="GEARS"):
                         print("Run GEARS")
                     elif(self.device_name=="KINECT"):
-                        print("Run Device")
+                        #print("Run Kinect")
+                        self.runKinect(data)
                     else:
                         print("Not supported Device name")
             except:
                 pass
 
+    def runKinect(self, rcv_data):
+        cmd = rcv_data.decode()
+        win = gw.getWindowsWithTitle("KinectAzure.exe")[0]
+        
+        if(cmd == "V" or cmd == "v"):
+            #print("Show")
+            pyautogui.press("v")
+        elif(cmd == "R" or cmd == "r"):
+            #print("Record")
+            pyautogui.press("r")
+        elif(cmd == "Q" or cmd == "q"):
+            #print("Quit")
+            pyautogui.press("q")
+        elif(cmd == "esc"):
+            #print("esc")
+            pyautogui.press("esc")
+        else: # i don't think it's essential to write code for extract and set dir
+            pass
+
 def runSys(DEVICE_NAME):
-    #HOST = '210.123.42.42'
-    HOST = "localhost"
-    PORT = 5051
+    #HOST = "localhost"
     client = socket_client(HOST, PORT, DEVICE_NAME)
 
     client.conn2server()
