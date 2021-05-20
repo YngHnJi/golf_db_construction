@@ -3,13 +3,22 @@
 # Client Part
 # Reference: https://lidron.tistory.com/44
 
+import os
 import socket
 import ntplib
 from threading import Thread
 from time import ctime
+import logging
 
 import pyautogui
 import pygetwindow as gw
+
+logger = logging.getLogger("KinectAzure")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s")
+
+stream_handler = logging.StreamHandler()
+file_handler = None
 
 class sync_time(): # class to sync time based on provided domain 
     def __init__(self, ntp_domain):
@@ -30,11 +39,36 @@ class socket_client():
         self.host_ip = HOST
         self.host_port = PORT
         self.device_name = DEVICE_NAME
+        self.kinect_toggle = 0
+
+
+        self.logdir= ".\\log"
+        if((os.path.exists(self.logdir)) != True):
+            os.mkdir(self.logdir) # if log fir not exists, make one
+
+        self.logger = logging.getLogger(DEVICE_NAME)
+
+    def initLogger(self, stream_log=True, file_log=True):
+        self.logger.setLevel(logging.INFO)
+        formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s")
+
+        stream_handler = None
+        file_handler = None
+
+        if(stream_log == True):
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(formatter)
+            self.logger.addHandler(stream_handler)
+        if(file_log == True):
+            file_handler = logging.FileHandler(filename=self.logdir+"\\"+self.device_name+".log")
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
 
     def conn2server(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((self.host_ip, self.host_port))
-            print("Connecting to Server")
+            #print("Connecting to Server")
+            logger.info("Connecting to Server")
             init_id = self.device_name
             sock.send(init_id.encode())
 
@@ -45,11 +79,14 @@ class socket_client():
             try:
                 data = sock.recv(1024)
                 if not data or (data.decode() == "quit"):
-                    print("===> Client closed")
+                    #print("===> Client closed")
+                    logger.info("===> Client closed")
                     break
 
                 # Device Operating part
-                print("Received CMD: ", data.decode())
+                #print("Received CMD: ", data.decode())
+                cmd_string = "Received CMD: " + str(data.decode()) 
+                logger.info(cmd_string)
                 if(data.decode() == "time"):
                     print(self.time_sync.get_NTPTime())
                 else:
@@ -59,19 +96,27 @@ class socket_client():
                         #print("Run Kinect")
                         self.runKinect(data)
                     else:
-                        print("Not supported Device name")
+                        #print("Not supported Device name")
+                        logger.info("Not supported Device Name")
             except:
                 pass
 
+
     def runKinect(self, rcv_data):
         cmd = rcv_data.decode()
-        win = gw.getWindowsWithTitle("KinectAzure.exe")[0]
+        #win = gw.getWindowsWithTitle("KinectAzure.exe")[0]
         
         if(cmd == "V" or cmd == "v"):
             #print("Show")
             pyautogui.press("v")
         elif(cmd == "R" or cmd == "r"):
             #print("Record")
+            if(self.kinect_toggle == 0):
+                logger.info("Start")
+            else:
+                logger.info("End")
+            
+            self.kinect_toggle ^= 1 # toggle switch
             pyautogui.press("r")
         elif(cmd == "Q" or cmd == "q"):
             #print("Quit")
@@ -84,9 +129,13 @@ class socket_client():
 
 def runSys(DEVICE_NAME):
     #HOST = "localhost"
+    HOST = "210.123.42.42"
+    PORT = 5052
     client = socket_client(HOST, PORT, DEVICE_NAME)
 
+    client.initLogger(stream_log=True, file_log=True)
     client.conn2server()
+
 
 if __name__=="__main__":
     DEVICE_NAME = None
@@ -100,4 +149,13 @@ if __name__=="__main__":
             bool_name = str(input("Typed Device is {}, is it right? Type (y/n) and enter : ".format(DEVICE_NAME)))
             if(bool_name=="y"):
                 name_flag = True
+
+    file_handler = logging.FileHandler(filename=DEVICE_NAME+".log")
+
+    stream_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+    
+    logger.addHandler(stream_handler)
+    logger.addHandler(file_handler)
+
     runSys(DEVICE_NAME)
