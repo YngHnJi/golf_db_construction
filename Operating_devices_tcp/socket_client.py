@@ -91,7 +91,7 @@ class socket_client():
                     print(self.time_sync.get_NTPTime())
                 else:
                     if(self.device_name=="GEARS"):
-                        print("Run GEARS")
+                        self.runGears(data)
                     elif(self.device_name=="KINECT"):
                         #print("Run Kinect")
                         self.runKinect(data)
@@ -100,7 +100,6 @@ class socket_client():
                         logger.info("Not supported Device Name")
             except:
                 pass
-
 
     def runKinect(self, rcv_data):
         cmd = rcv_data.decode()
@@ -126,6 +125,10 @@ class socket_client():
             pyautogui.press("esc")
         else: # i don't think it's essential to write code for extract and set dir
             pass
+
+    def runGears(self, rcv_data):
+        print("Hello World!")
+        # use pyautogui.hotkey properly to make it.
 
 def runSys(DEVICE_NAME):
     #HOST = "localhost"
