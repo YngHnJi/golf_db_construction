@@ -2,6 +2,16 @@
 
 # Client Part
 # Reference: https://lidron.tistory.com/44
+# file transfer : https://github.com/linuxhintcode/websamples/blob/master/python_send_file/server.py
+
+"""
+log
+
+210624 file tranfer module added @ Young-hoon Ji
+https://github.com/linuxhintcode/websamples/blob/master/python_send_file/server.py
+
+"""
+
 
 import os
 import socket
@@ -12,6 +22,8 @@ import logging
 
 import pyautogui
 import pygetwindow as gw
+
+import src.utils as utils
 
 logger = logging.getLogger("KinectAzure")
 logger.setLevel(logging.INFO)
@@ -40,7 +52,6 @@ class socket_client():
         self.host_port = PORT
         self.device_name = DEVICE_NAME
         self.kinect_toggle = 0
-
 
         self.logdir= ".\\log"
         if((os.path.exists(self.logdir)) != True):
@@ -91,17 +102,31 @@ class socket_client():
                     print(self.time_sync.get_NTPTime())
                 else:
                     if(self.device_name=="GEARS"):
-                        self.runGears(data)
+                        self.runGears(data, sock)
                     elif(self.device_name=="KINECT"):
                         #print("Run Kinect")
-                        self.runKinect(data)
+                        self.runKinect(data, sock)
                     else:
                         #print("Not supported Device name")
                         logger.info("Not supported Device Name")
             except:
                 pass
 
-    def runKinect(self, rcv_data):
+    def sendFile(self, sock):
+        #print("File Transfer")
+        file = open("sampledata.txt", "rb")
+
+        SendData = file.read(1024)
+        while SendData:
+            print("Sending...")
+            sock.send(SendData)
+            SendData = file.read(1024)
+            if(SendData==b""):
+                sock.send(b"eof")
+        
+        return
+
+    def runKinect(self, rcv_data, socket):
         cmd = rcv_data.decode()
         #win = gw.getWindowsWithTitle("KinectAzure.exe")[0]
         
@@ -126,14 +151,20 @@ class socket_client():
         else: # i don't think it's essential to write code for extract and set dir
             pass
 
-    def runGears(self, rcv_data):
-        print("Hello World!")
+    def runGears(self, rcv_data, socket):
+        cmd = rcv_data.decode()
+        cmd = cmd.upper()
+
+        print("Gears Connected")
+        if(cmd=="FILE" or cmd=="file"):
+            self.sendFile(socket)
+
         # use pyautogui.hotkey properly to make it.
 
 def runSys(DEVICE_NAME):
     #HOST = "localhost"
-    HOST = "210.123.42.42"
-    PORT = 5052
+    HOST = ""
+    PORT = 
     client = socket_client(HOST, PORT, DEVICE_NAME)
 
     client.initLogger(stream_log=True, file_log=True)
