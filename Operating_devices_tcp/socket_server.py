@@ -3,60 +3,89 @@
 # Server Part
 # Reference: https://lidron.tistory.com/44
 
+
+"""
+210624 file receiving function added @Young-hoon Ji
+
+"""
+
+
+import tqdm
 import socketserver
 import threading
 
-#HOST = '210.123.42.42'
-HOST = "localhost"
-PORT = 5051
+HOST = ''
+PORT = 
 NUM_DEVICE = 0
-lock = threading.Lock() # syncronized 동기화 진행하는 스레드 생성
+lock = threading.Lock()
 
 class UserManager:
     def __init__(self):
-        self.users = {} # 사용자의 등록 정보를 담을 사전 {사용자 이름:(소켓,주소),...}
+        self.users = {}
 
-    def addUser(self, username, conn, addr): # 사용자 ID를 self.users에 추가하는 함수
-        if username in self.users: # 이미 등록된 사용자라면
+    def addUser(self, username, conn, addr):
+        if username in self.users:
             conn.send('Already registered Device\n'.encode())
             return None
 
-        # 새로운 사용자를 등록함
-        lock.acquire() # 스레드 동기화를 막기위한 락
+        lock.acquire()
         self.users[username] = (conn, addr)
-        lock.release() # 업데이트 후 락 해제
+        lock.release()
 
         self.sendMessageToAll('[%s] Connected to Server' %username)
        
         return username
 
-    def messageHandler(self, username, msg): # 전송한 msg를 처리하는 부분
-        if msg[0] != '/': # 보낸 메세지의 첫문자가 '/'가 아니면
-            #self.sendMessageToAll('[%s] %s' %(username, msg))
+    def messageHandler(self, username, msg):
+        if msg[0] != '/':
             self.sendMessageToAll(msg)
+            #print(msg)
+            #print(username)
+            if(msg=="file" or msg=="FILE"):
+                self.receiveFile(msg)
             return
 
     def sendMessageToAll(self, msg):
         for conn, addr in self.users.values():
             conn.send(msg.encode())
 
+    def receiveFile(self, msg): # 210624 added yhji
+        print("Inside of function")
+        for conn, addr in self.users.values():
+            file = open("recv.txt", "wb") # recv file name to write
+
+            RecvData = conn.recv(1024)
+            while RecvData:
+                print("Receiving")
+                file.write(RecvData)
+                RecvData = conn.recv(1024)
+                
+                if(RecvData==b"eof"):
+                    break
+
+            file.close()
+
+        print("File Received")
+
+        return
+        
+
 
 # class react when request comes from client
 class TCPHandler(socketserver.BaseRequestHandler):
     userman = UserManager()
    
-    def handle(self): # 클라이언트가 접속시 클라이언트 주소 출력
+    def handle(self):
         print('[%s] Connected' %self.client_address[0])
 
         try:
             username = self.registerUsername()
-
+            
             connected_devices = list(self.userman.users.keys())
             for device in connected_devices:
-                print(device, end=" ")
+                print(device, end=", ")
+            print("Num Devices Connected [%d / %d]" %(len(self.userman.users), NUM_DEVICE))
 
-            print("// Devices Connected [%d / %d]" %(len(self.userman.users), NUM_DEVICE))
-            
             if(len(self.userman.users) == NUM_DEVICE):
                 print("All devices ready to be operated")
                 while True:
@@ -70,7 +99,7 @@ class TCPHandler(socketserver.BaseRequestHandler):
                         print('===> Closing operating system.')
                         print('===> Type Ctrl+C to end the System.')
                         return
-                    print(msg)
+                    #print(msg)
 
                     # Handle 
                     self.userman.messageHandler(username, msg)
