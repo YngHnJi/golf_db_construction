@@ -6,10 +6,8 @@
 
 """
 log
-
 210624 file tranfer module added @ Young-hoon Ji
 https://github.com/linuxhintcode/websamples/blob/master/python_send_file/server.py
-
 """
 
 
@@ -23,7 +21,8 @@ import logging
 import pyautogui
 import pygetwindow as gw
 
-import src.utils as utils
+import utils.gears_macro as gears_macro
+#import src.utils as utils
 
 logger = logging.getLogger("KinectAzure")
 logger.setLevel(logging.INFO)
@@ -47,11 +46,21 @@ class sync_time(): # class to sync time based on provided domain
 class socket_client():
     time_sync = sync_time("time.windows.com")
 
-    def __init__(self, HOST, PORT, DEVICE_NAME):
+    def __init__(self, HOST, PORT, DEVICE_NAME, SAVE_ROOT):
         self.host_ip = HOST
         self.host_port = PORT
         self.device_name = DEVICE_NAME
+        self.save_root = SAVE_ROOT
+        
+        # kinect variable
         self.kinect_toggle = 0
+
+        #self.win_gears = gw.getWindowsWithTitle("Gears - Sports")[0]
+        #self.win_kinect = gw.getWindowsWithTitle("KinectAzure.exe")[0]
+        
+        # gears variable
+        self.gears_counter = 2
+        self.save_dir = "C:\\Users\\GEARS\\Desktop\\GEARS_Data_PostProcess\\okay2del\\210629\\test4\\"
 
         self.logdir= ".\\log"
         if((os.path.exists(self.logdir)) != True):
@@ -73,13 +82,13 @@ class socket_client():
         if(file_log == True):
             file_handler = logging.FileHandler(filename=self.logdir+"\\"+self.device_name+".log")
             file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
+            self.logger.addHandler(file_handler)
 
     def conn2server(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.connect((self.host_ip, self.host_port))
             #print("Connecting to Server")
-            logger.info("Connecting to Server")
+            self.logger.info("Connecting to Server")
             init_id = self.device_name
             sock.send(init_id.encode())
 
@@ -91,13 +100,13 @@ class socket_client():
                 data = sock.recv(1024)
                 if not data or (data.decode() == "quit"):
                     #print("===> Client closed")
-                    logger.info("===> Client closed")
+                    self.logger.info("===> Client closed")
                     break
 
                 # Device Operating part
                 #print("Received CMD: ", data.decode())
                 cmd_string = "Received CMD: " + str(data.decode()) 
-                logger.info(cmd_string)
+                self.logger.info(cmd_string)
                 if(data.decode() == "time"):
                     print(self.time_sync.get_NTPTime())
                 else:
@@ -108,7 +117,7 @@ class socket_client():
                         self.runKinect(data, sock)
                     else:
                         #print("Not supported Device name")
-                        logger.info("Not supported Device Name")
+                        self.logger.info("Not supported Device Name")
             except:
                 pass
 
@@ -129,16 +138,16 @@ class socket_client():
     def runKinect(self, rcv_data, socket):
         cmd = rcv_data.decode()
         #win = gw.getWindowsWithTitle("KinectAzure.exe")[0]
-        
+
         if(cmd == "V" or cmd == "v"):
             #print("Show")
             pyautogui.press("v")
         elif(cmd == "R" or cmd == "r"):
             #print("Record")
             if(self.kinect_toggle == 0):
-                logger.info("Start")
+                self.logger.info("Start")
             else:
-                logger.info("End")
+                self.logger.info("End")
             
             self.kinect_toggle ^= 1 # toggle switch
             pyautogui.press("r")
@@ -155,17 +164,41 @@ class socket_client():
         cmd = rcv_data.decode()
         cmd = cmd.upper()
 
-        print("Gears Connected")
-        if(cmd=="FILE" or cmd=="file"):
+        #print("Gears Connected")
+        #self.win_gears.activate() # activate gears window to manage
+        win_gears = gw.getWindowsWithTitle("Gears - Sports")[0]
+
+        #print("Run GEARS")
+
+        if(cmd=="SCAN"):
+            # move mouse cursor to scan icon
+            win_gears.activate()
+            print("scan")
+            pyautogui.moveTo(69, 1049)                # x 69 y 1049, for scan ball button
+            pyautogui.click()       
+        elif(cmd=="R"):
+            win_gears.activate()
+            pyautogui.moveTo(14, 1056)                # x 14, y 1056, for record button
+            pyautogui.click()
+            self.gears_counter += 1
+        elif(cmd=="SAVE"):
+            gears_macro.gears_save(self.save_dir, self.gears_counter) # 
+            #self.gears_counter = 0
+        elif(cmd=="DIR"):
+            playername_data = socket.recv(1024)
+            player_name = playername_data.decode()
+            self.save_dir = self.save_root + "\\" + player_name + "\\"
+            
+            temp_str = "Save Dir : " + self.save_dir
+            self.logger.info(temp_str)
+        elif(cmd=="FILE"):
             self.sendFile(socket)
 
-        # use pyautogui.hotkey properly to make it.
 
-def runSys(DEVICE_NAME):
-    #HOST = "localhost"
-    HOST = ""
+def runSys(DEVICE_NAME, SAVE_ROOT):
+    HOST = 
     PORT = 
-    client = socket_client(HOST, PORT, DEVICE_NAME)
+    client = socket_client(HOST, PORT, DEVICE_NAME, SAVE_ROOT)
 
     client.initLogger(stream_log=True, file_log=True)
     client.conn2server()
@@ -183,6 +216,7 @@ if __name__=="__main__":
             bool_name = str(input("Typed Device is {}, is it right? Type (y/n) and enter : ".format(DEVICE_NAME)))
             if(bool_name=="y"):
                 name_flag = True
+            SAVE_ROOT = str(input("Typed File save root: "))
 
     file_handler = logging.FileHandler(filename=DEVICE_NAME+".log")
 
@@ -192,4 +226,4 @@ if __name__=="__main__":
     logger.addHandler(stream_handler)
     logger.addHandler(file_handler)
 
-    runSys(DEVICE_NAME)
+    runSys(DEVICE_NAME, SAVE_ROOT)
